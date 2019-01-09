@@ -1,0 +1,12 @@
+# Ubuntu - Debian versions
+# https://askubuntu.com/questions/445487/what-debian-version-are-the-different-ubuntu-versions-based-on
+#FROM debian:jessie
+#FROM debian:stretch
+FROM debian:buster
+
+COPY horovod_ci.sh /tmp
+RUN chmod +x /tmp/horovod_ci.sh
+RUN /tmp/horovod_ci.sh
+RUN rm -f /tmp/horovod_ci.sh
+
+WORKDIR /hvdci
