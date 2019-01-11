@@ -33,12 +33,12 @@ function run_benchmark() {
     echo "$MPIRUN $ENV $CMD $OPTIONS"
     TIC=$(date +%s)
     $MPIRUN $ENV $CMD $OPTIONS
-    TIC=$(date +%s)
+    TOC=$(date +%s)
     echo "=====Done $1GPU $2 $3 $4 $5 $6 in $(($TOC - $TIC)) Seconds====="
     sleep 10
 }
 
-if [ "$#" -ne 3]; then
+if [ "$#" -ne 3 ]; then
     echo "Usage: ./benchmark.sh <num_gpus> <model> <lr_mode>"
     exit
 fi
