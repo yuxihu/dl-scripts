@@ -9,7 +9,6 @@ function run_benchmark() {
     DTYPE=$5
     DATA_SRC=$6
 
-
     if [[ $DTYPE = "float32" ]]; then
         LR=0.05
         BATCH_SIZE=128
@@ -23,7 +22,7 @@ function run_benchmark() {
         ENV="$ENV -x HOROVOD_HIERARCHICAL_ALLREDUCE=1"
     fi
 
-    OPTIONS="--model $MODEL --dtype $DTYPE --batch-size $BATCH_SIZE --lr $LR --lr-mode $MODE --warmup-epochs 1 --num-epochs 2 --data-nthreads 4 --last-gamma"
+    OPTIONS="--model $MODEL --dtype $DTYPE --batch-size $BATCH_SIZE --lr $LR --lr-mode $MODE --warmup-epochs 5 --num-epochs 91 --data-nthreads 4 --last-gamma"
     if [[ $DATA_SRC != "synthetic" ]]; then
         OPTIONS="$OPTIONS --use-rec --rec-train /media/ramdisk/train-480px-q95.rec --rec-train-idx /media/ramdisk/train-480px-q95.idx --rec-val /media/ramdisk/val-480px-q95.rec --rec-val-idx /media/ramdisk/val-480px-q95.idx"
     fi

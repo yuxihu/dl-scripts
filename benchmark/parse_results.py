@@ -35,7 +35,7 @@ def print_result(result, label):
         max_num = round(max(result), decimal)
         min_num = round(min(result), decimal)
         mean_num = round(sum(result) / len(result), decimal)
-        print(label + " : max=%s min =%s mean=%s" % (max_num, min_num, mean_num))
+        print(label + " : max=%s min=%s mean=%s" % (max_num, min_num, mean_num))
 
 
 if __name__ == "__main__":
