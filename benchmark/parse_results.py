@@ -12,6 +12,7 @@ def parse(res_file, epoch_num, batch_num):
                 print_result(train_acc, "Train Accuracy")
                 print_result(val_acc, "Validation Accuracy")
                 print_result(speed, "Throughput")
+                print("")
                 train_acc = []
                 val_acc = []
                 speed = []
