@@ -4,12 +4,14 @@ function run_benchmark() {
     NUM_WORKERS=$1
     NUM_HOSTS=$(expr $NUM_WORKERS / 8)
     MODEL=$2
-    MODE=$3
+    LR_MODE=$3
     DATA_SRC=$4
     MEASURE=$5
     ALLREDUCE=$6
     DTYPE=$7
     BATCH_SIZE=$8
+    OPT=$9
+    WARM_EP=${10}
 
     MPIRUN="mpirun -np $NUM_WORKERS --hostfile $HOME/${NUM_HOSTS}hosts --bind-to none --map-by slot -mca pml ob1 -mca btl ^openib"
     ENV="-x NCCL_DEBUG=INFO -x NCCL_MIN_NRINGS=4 -x MXNET_USE_OPERATOR_TUNING=0 -x HOROVOD_STALL_CHECK_DISABLE=1"
@@ -17,15 +19,15 @@ function run_benchmark() {
         ENV="$ENV -x HOROVOD_HIERARCHICAL_ALLREDUCE=1"
     fi
 
-    SAVE_FREQ=30
+    SAVE_FREQ=45
     if [[ $BATCH_SIZE = 128 ]]; then
         LR=0.05
     else
         LR=0.1
     fi
-    OPTIONS="--model $MODEL --dtype $DTYPE --batch-size $BATCH_SIZE --lr $LR --lr-mode $MODE --save-frequency $SAVE_FREQ --data-nthreads 2 --last-gamma"
+    OPTIONS="--model $MODEL --dtype $DTYPE --batch-size $BATCH_SIZE --lr $LR --lr-mode $LR_MODE --save-frequency $SAVE_FREQ --data-nthreads 2 --last-gamma"
     if [[ $MEASURE == "accuracy" ]]; then
-        OPTIONS="$OPTIONS --warmup-epochs 5 --num-epochs 91"
+        OPTIONS="$OPTIONS --warmup-epochs $WARM_EP --num-epochs 91"
     else
         OPTIONS="$OPTIONS --warmup-epochs 0 --num-epochs 1"
     fi
@@ -45,23 +47,38 @@ function run_benchmark() {
     echo "=====Done ${NUM_WORKERS}GPU $MODEL $ALLREDUCE $DTYPE $DATA_SRC in $(($TOC - $TIC)) Seconds====="
 
     if ls ${MODEL}* 1> /dev/null 2>&1; then
-        save_checkpoint $MODEL $LR_MODE $DTYPE $BATCH_SIZE $ALLREDUCE
+        SSH_CMD="cd ~/train && ./save_checkpoint.sh $MODEL $LR_MODE $DTYPE $BATCH_SIZE $ALLREDUCE $OPT $WARM_EP"
+        run_ssh_cmd "${SSH_CMD}"
     fi
 
     sleep $SLEEP_TIME
 }
 
 function start_benchmark() {
-    run_benchmark $1 $2 $3 $4 $5 "non-ha" "float32" 128
-    run_benchmark $1 $2 $3 $4 $5 "ha" "float32" 128
-    run_benchmark $1 $2 $3 $4 $5 "non-ha" "float16" 256
-    run_benchmark $1 $2 $3 $4 $5 "ha" "float16" 256
-    run_benchmark $1 $2 $3 $4 $5 "non-ha" "float16" 128
-    run_benchmark $1 $2 $3 $4 $5 "ha" "float16" 128
+    #run_benchmark $1 $2 $3 $4 $5 "non-ha" "float32" 128 "sgd" 10
+    #run_benchmark $1 $2 $3 $4 $5 "ha" "float32" 128 "sgd" 10
+    #run_benchmark $1 $2 $3 $4 $5 "non-ha" "float32" 128 "sgd" 5
+    #run_benchmark $1 $2 $3 $4 $5 "ha" "float32" 128 "sgd" 5
+
+    run_benchmark $1 $2 $3 $4 $5 "non-ha" "float32" 128 "nag" 10
+    run_benchmark $1 $2 $3 $4 $5 "ha" "float32" 128 "nag" 10
+    run_benchmark $1 $2 $3 $4 $5 "non-ha" "float32" 128 "nag" 5
+    run_benchmark $1 $2 $3 $4 $5 "ha" "float32" 128 "nag" 5
+
+    #run_benchmark $1 $2 $3 $4 $5 "non-ha" "float16" 256 "sgd" 10
+    #run_benchmark $1 $2 $3 $4 $5 "ha" "float16" 256 "sgd" 10
+    #run_benchmark $1 $2 $3 $4 $5 "non-ha" "float16" 256 "sgd" 5
+    #run_benchmark $1 $2 $3 $4 $5 "ha" "float16" 256 "sgd" 5
+
+    #run_benchmark $1 $2 $3 $4 $5 "non-ha" "float16" 256 "nag" 10
+    #run_benchmark $1 $2 $3 $4 $5 "ha" "float16" 256 "nag" 10
+    #run_benchmark $1 $2 $3 $4 $5 "non-ha" "float16" 256 "nag" 5
+    #run_benchmark $1 $2 $3 $4 $5 "ha" "float16" 256 "nag" 5
 }
 
-function save_checkpoint() {
-    CMD="cd ~/train && ./save_checkpoint.sh $1 $2 $3 $4 $5"
+function run_ssh_cmd() {
+    CMD=$1
+    echo $CMD
     ssh 172.31.13.223 "${CMD}"
     ssh 172.31.5.191 "${CMD}"
     ssh 172.31.5.144 "${CMD}"
