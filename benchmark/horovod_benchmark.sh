@@ -22,10 +22,12 @@ function run_benchmark() {
     SAVE_FREQ=45
     if [[ $BATCH_SIZE = 128 ]]; then
         LR=0.05
+        DT=2
     else
         LR=0.1
+        DT=4
     fi
-    OPTIONS="--model $MODEL --dtype $DTYPE --batch-size $BATCH_SIZE --lr $LR --lr-mode $LR_MODE --save-frequency $SAVE_FREQ --data-nthreads 2 --last-gamma"
+    OPTIONS="--model $MODEL --dtype $DTYPE --batch-size $BATCH_SIZE --lr $LR --lr-mode $LR_MODE --save-frequency $SAVE_FREQ --data-nthreads $DT --last-gamma"
     if [[ $MEASURE == "accuracy" ]]; then
         OPTIONS="$OPTIONS --warmup-epochs $WARM_EP --num-epochs 91"
     else
