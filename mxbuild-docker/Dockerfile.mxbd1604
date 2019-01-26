@@ -1,8 +1,7 @@
 FROM ubuntu:16.04
 
 WORKDIR /mxbuild
-COPY mxnet-distro /mxbuild/mxnet-distro
-COPY deps-lib/1604 /mxbuild/mxnet-distro/deps
+COPY mxnet-ci /mxbuild/mxnet-ci
 
 COPY mxnet_build1604.sh /tmp
 RUN chmod +x /tmp/mxnet_build1604.sh
