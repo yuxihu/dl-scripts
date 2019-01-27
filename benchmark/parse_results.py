@@ -1,5 +1,9 @@
+import math
 import re
 import sys
+
+
+SAMPLES=1281167
 
 
 def parse(res_file, epoch_num, batch_num):
@@ -61,37 +65,81 @@ def parse_accuracy(acc_file):
                     accuracy = []
 
 
-def parse_time(time_file):
+def parse_time(time_file, batch_size):
     with open(time_file, "r") as inf:
         train_time = []
         epoch_time = []
-        cur_epoch = 0
+        train_speed = []
+        epoch_speed = []
+        cur_time_epoch = 0
+        cur_speed_epoch = 0
+        nbatch = 1
+        num_gpus = 64
         for line in inf:
             if "Start" in line:
                 print(line.replace("\n", ""))
+                train_time = []
+                epoch_time = []
+                train_speed = []
+                epoch_speed = []
+                cur_time_epoch = 0
+                cur_speed_epoch = 0
+
+                num_gpus = 64
+                act_gpu = re.search(r"GPU=([0-9]+)", line)
+                if act_gpu is not None:
+                    num_gpus = int(act_gpu.group(1))
+                nbatch = int(math.ceil(int(SAMPLES // num_gpus) / batch_size))
+
             if "Time cost" in line:
                 epoch = int(re.search(r"Epoch\[([0-9]+)\]", line).group(1))
                 tc = float(line.split("=")[1])
-                if epoch != cur_epoch:
-                    train_time.append((cur_epoch, round(sum(epoch_time) / len(epoch_time), 2)))
-                    cur_epoch = epoch
+                if epoch != cur_time_epoch:
+                    train_time.append((cur_time_epoch, round(sum(epoch_time) / len(epoch_time), 2)))
+                    cur_time_epoch = epoch
                     epoch_time = []
                 epoch_time.append(tc)
+
+            if "Speed" in line:
+                epoch = int(re.search(r"Epoch\[([0-9]+)\]", line).group(1))
+                sd = float(line.split(": ")[1].split(" ")[0])
+                if epoch != cur_speed_epoch:
+                    train_speed.append((cur_speed_epoch, round(sum(epoch_speed) / len(epoch_speed), 2)))
+                    cur_speed_epoch = epoch
+                    epoch_speed = []
+                epoch_speed.append(sd)
+
             if "Done" in line:
-                samples = 1281167
+                train_time.append((cur_time_epoch, round(sum(epoch_time) / len(epoch_time), 2)))
                 train_time.sort(key=lambda tup: tup[1])
-                print("max=%s" % str(train_time[-1]))
-                print("min=%s" % str(train_time[0]))
-                print("speed=%s" % str(round(samples / train_time[0][1], 2)))
+                all_time = [t for i, t in train_time if i != 0 and i != 90]
+                avg_time = round(sum(all_time) / len(all_time), 2)
+                print("max_time=%s" % str(train_time[-1]))
+                print("min_time=%s" % str(train_time[0]))
+                print("avg_time=%s" % str(avg_time))
+
+                train_speed.append((cur_speed_epoch, round(sum(epoch_speed) / len(epoch_speed), 2)))
+                train_speed.sort(key=lambda tup: tup[1])
+                all_speed = [s for i, s in train_speed  if i != 0 and i != 90]
+                avg_speed = round(sum(all_speed) / len(all_speed), 2)
+                print("max_speed=%s" % str(train_speed[-1]))
+                print("min_speed=%s" % str(train_speed[0]))
+                print("avg_speed=%s" % str(avg_speed))
+
+                speed_gpu = round(nbatch * batch_size / avg_time, 2)
+                speed_node = speed_gpu * 8
+                speed_train = speed_gpu * num_gpus
+
+                print("speed_gpu=%s, speed_node=%s, speed_all=%s" %
+                      (str(speed_gpu), str(speed_node), str(speed_train)))
                 print("")
-                train_time = []
 
 
 if __name__ == "__main__":
     if sys.argv[1] == "acc":
         parse_accuracy(sys.argv[2])
     elif sys.argv[1] == "time":
-        parse_time(sys.argv[2])
+        parse_time(sys.argv[2], int(sys.argv[3]))
     else:
         if len(sys.argv) != 4:
             print("Usage: python parse_results.py <result_file> <epoch_num> <batch_num>")
