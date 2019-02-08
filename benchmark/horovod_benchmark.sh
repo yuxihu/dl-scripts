@@ -2,7 +2,6 @@
 
 function run_benchmark() {
   NUM_WORKERS=$1
-  NUM_HOSTS=$(expr $NUM_WORKERS / 8)
   MODEL=$2
   LR_MODE=$3
   TRAIN_MODE=$4
@@ -12,20 +11,20 @@ function run_benchmark() {
   OPT=$8
   WARM_EP=$9
 
-  MPIRUN="mpirun -np $NUM_WORKERS --hostfile $HOME/${NUM_HOSTS}hosts --bind-to none --map-by slot -mca pml ob1 -mca btl ^openib"
-  ENV="-x NCCL_MIN_NRINGS=4 -x MXNET_USE_OPERATOR_TUNING=0 -x HOROVOD_STALL_CHECK_DISABLE=1"
+  MPIRUN="mpirun -np $NUM_WORKERS --hostfile $HOME/hosts --bind-to none --map-by slot -mca pml ob1 -mca btl ^openib"
+  ENV="-x NCCL_MIN_NRINGS=4 -x MXNET_USE_OPERATOR_TUNING=0 -x MXNET_OPTIMIZER_AGGREGATION_SIZE=4 -x HOROVOD_STALL_CHECK_DISABLE=1"
   if [[ $ALLREDUCE = "ha" ]]; then
     ENV="$ENV -x HOROVOD_HIERARCHICAL_ALLREDUCE=1"
   fi
 
-  SAVE_FREQ=0
-  EVAL_FREQ=90
+  SAVE_FREQ=90
+  EVAL_FREQ=0
   if [[ $BATCH_SIZE = 128 ]]; then
     LR=0.05
     DT=2
   else
     LR=0.1
-    DT=3
+    DT=4
   fi
   OPTIONS="--model $MODEL --dtype $DTYPE --batch-size $BATCH_SIZE --lr $LR --lr-mode $LR_MODE --mode $TRAIN_MODE --optimizer $OPT"
   OPTIONS="$OPTIONS --save-frequency $SAVE_FREQ --eval-frequency $EVAL_FREQ --data-nthreads $DT --warmup-epochs $WARM_EP --num-epochs 91 --last-gamma"
@@ -40,45 +39,45 @@ function run_benchmark() {
   echo "=====Done ${NUM_WORKERS}GPU $TRAIN_MODE $ALLREDUCE $DTYPE $BATCH_SIZE $OPT $WARM_EP in $(($TOC - $TIC)) Seconds====="
 
   if ls ${MODEL}* 1> /dev/null 2>&1; then
-    SSH_CMD="cd ~/train && ./save_checkpoint.sh $MODEL $LR_MODE $DTYPE $BATCH_SIZE $ALLREDUCE $OPT $WARM_EP"
+    SSH_CMD="cd ~/train && ./save_checkpoint.sh $MODEL $TRAIN_MODE $LR_MODE $DTYPE $BATCH_SIZE $ALLREDUCE $OPT $WARM_EP"
     run_ssh_cmd "${SSH_CMD}"
   fi
 
-  sleep 60
+  sleep 300
 }
 
 function start_benchmark() {
-  # Train in hybrid mode
-  run_benchmark $1 $2 $3 "hybrid" "ha" "float16" 256 "sgd" 10
-  run_benchmark $1 $2 $3 "hybrid" "ha" "float16" 256 "sgd" 5
-  run_benchmark $1 $2 $3 "hybrid" "ha" "float16" 256 "nag" 10
-  run_benchmark $1 $2 $3 "hybrid" "ha" "float16" 256 "nag" 5
+  # Train in gluon mode
+  run_benchmark $1 $2 $3 "gluon" "ha" "float16" 256 "sgd" 10
+  run_benchmark $1 $2 $3 "gluon" "ha" "float16" 256 "sgd" 5
+  run_benchmark $1 $2 $3 "gluon" "ha" "float16" 256 "nag" 10
+  run_benchmark $1 $2 $3 "gluon" "ha" "float16" 256 "nag" 5
 
-  run_benchmark $1 $2 $3 "hybrid" "non-ha" "float16" 256 "sgd" 10
-  run_benchmark $1 $2 $3 "hybrid" "non-ha" "float16" 256 "sgd" 5
-  run_benchmark $1 $2 $3 "hybrid" "non-ha" "float16" 256 "nag" 10
-  run_benchmark $1 $2 $3 "hybrid" "non-ha" "float16" 256 "nag" 5
+  run_benchmark $1 $2 $3 "gluon" "non-ha" "float16" 256 "sgd" 10
+  run_benchmark $1 $2 $3 "gluon" "non-ha" "float16" 256 "sgd" 5
+  run_benchmark $1 $2 $3 "gluon" "non-ha" "float16" 256 "nag" 10
+  run_benchmark $1 $2 $3 "gluon" "non-ha" "float16" 256 "nag" 5
 
-  # Train in symbolic mode
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float16" 256 "sgd" 10
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float16" 256 "sgd" 5
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float16" 256 "nag" 10
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float16" 256 "nag" 5
+  # Train in module mode
+  # run_benchmark $1 $2 $3 "module" "ha" "float16" 256 "sgd" 10
+  # run_benchmark $1 $2 $3 "module" "ha" "float16" 256 "sgd" 5
+  # run_benchmark $1 $2 $3 "module" "ha" "float16" 256 "nag" 10
+  # run_benchmark $1 $2 $3 "module" "ha" "float16" 256 "nag" 5
 
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float32" 128 "sgd" 10
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float32" 128 "sgd" 5
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float32" 128 "nag" 10
-  # run_benchmark $1 $2 $3 "symbolic" "ha" "float32" 128 "nag" 5
+  # run_benchmark $1 $2 $3 "module" "ha" "float32" 128 "sgd" 10
+  # run_benchmark $1 $2 $3 "module" "ha" "float32" 128 "sgd" 5
+  # run_benchmark $1 $2 $3 "module" "ha" "float32" 128 "nag" 10
+  # run_benchmark $1 $2 $3 "module" "ha" "float32" 128 "nag" 5
 
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float16" 256 "sgd" 10
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float16" 256 "sgd" 5
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float16" 256 "nag" 10
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float16" 256 "nag" 5
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float16" 256 "sgd" 10
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float16" 256 "sgd" 5
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float16" 256 "nag" 10
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float16" 256 "nag" 5
 
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float32" 128 "sgd" 10
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float32" 128 "sgd" 5
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float32" 128 "nag" 10
-  # run_benchmark $1 $2 $3 "symbolic" "non-ha" "float32" 128 "nag" 5
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float32" 128 "sgd" 10
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float32" 128 "sgd" 5
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float32" 128 "nag" 10
+  # run_benchmark $1 $2 $3 "module" "non-ha" "float32" 128 "nag" 5
 }
 
 function run_ssh_cmd() {

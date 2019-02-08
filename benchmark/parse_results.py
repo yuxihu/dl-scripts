@@ -93,7 +93,7 @@ def parse_time(time_file, batch_size):
 
             if "Time cost" in line:
                 epoch = int(re.search(r"Epoch\[([0-9]+)\]", line).group(1))
-                tc = float(line.split("=")[1])
+                tc = float(line.split("\t")[1].split("=")[1])
                 if epoch != cur_time_epoch:
                     train_time.append((cur_time_epoch, round(sum(epoch_time) / len(epoch_time), 2)))
                     cur_time_epoch = epoch
@@ -112,15 +112,19 @@ def parse_time(time_file, batch_size):
             if "Done" in line:
                 train_time.append((cur_time_epoch, round(sum(epoch_time) / len(epoch_time), 2)))
                 train_time.sort(key=lambda tup: tup[1])
-                all_time = [t for i, t in train_time if i != 0 and i != 90]
-                avg_time = round(sum(all_time) / len(all_time), 2)
+                #all_time = [t for i, t in train_time if i != 0 and i != 90]
+                all_time = [t for i, t in train_time if i != 90]
+                sum_time = sum(all_time)
+                avg_time = round(sum_time / len(all_time), 2)
                 print("max_time=%s" % str(train_time[-1]))
                 print("min_time=%s" % str(train_time[0]))
+                print("sum_time=%s" % str(sum_time))
                 print("avg_time=%s" % str(avg_time))
 
                 train_speed.append((cur_speed_epoch, round(sum(epoch_speed) / len(epoch_speed), 2)))
                 train_speed.sort(key=lambda tup: tup[1])
-                all_speed = [s for i, s in train_speed  if i != 0 and i != 90]
+                #all_speed = [s for i, s in train_speed  if i != 0 and i != 90]
+                all_speed = [s for i, s in train_speed  if i != 90]
                 avg_speed = round(sum(all_speed) / len(all_speed), 2)
                 print("max_speed=%s" % str(train_speed[-1]))
                 print("min_speed=%s" % str(train_speed[0]))

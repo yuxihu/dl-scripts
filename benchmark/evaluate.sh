@@ -6,8 +6,8 @@ EVAL_DIR="$HOME/train/backup-float16-ckpnt"
 #EVAL_DIR="$HOME/train/backup-float32-ckpnt"
 
 MPIRUN="mpirun -np 64 --hostfile $HOME/8hosts --bind-to none --map-by slot -mca pml ob1 -mca btl ^openib"
-ENV="-x NCCL_DEBUG=INFO -x NCCL_MIN_NRINGS=4 -x MXNET_USE_OPERATOR_TUNING=0"
-CMD="/home/ubuntu/.virtualenvs/mxnet/bin/python /home/ubuntu/train/accuracy/evaluate_model.py"
+ENV="-x NCCL_MIN_NRINGS=4 -x MXNET_USE_OPERATOR_TUNING=0"
+CMD="/home/ubuntu/.virtualenvs/mxnet/bin/python /home/ubuntu/train/evaluate/evaluate_model.py"
 for dir in $(ls ${EVAL_DIR});
 do
   OPTIONS="--batch-size $BATCH_SIZE --checkpoint-dir $EVAL_DIR/$dir"

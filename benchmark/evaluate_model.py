@@ -15,7 +15,7 @@ parser.add_argument('--model', type=str, default='resnet50_v1b',
                     help='type of model to use. see vision_model for options.')
 parser.add_argument('--batch-size', type=int, default=256,
                     help='training batch size per device (default: 256)')
-parser.add_argument('--data-nthreads', type=int, default=2,
+parser.add_argument('--data-nthreads', type=int, default=4,
                     help='number of threads for data decoding')
 parser.add_argument('--rec-val', type=str, default='/media/ramdisk/val-480px-q95.rec',
                     help='the validation data')
@@ -33,9 +33,10 @@ logging.info(args)
 
 # Initialize Horovod
 hvd.init()
+local_rank = hvd.local_rank()
 
 # Horovod: pin GPU to local rank.
-context = mx.cpu() if args.no_cuda else mx.gpu(hvd.local_rank())
+context = mx.cpu() if args.no_cuda else mx.gpu(local_rank)
 
 def get_data_rec():
     # kept each node to use full val data to make it easy to monitor results
@@ -53,7 +54,8 @@ def get_data_rec():
         data_shape=(3, 224, 224),
         mean_r=mean_rgb[0],
         mean_g=mean_rgb[1],
-        mean_b=mean_rgb[2]
+        mean_b=mean_rgb[2],
+        device_id=local_rank
     )
 
     return val_data
@@ -64,7 +66,7 @@ val_data = get_data_rec()
 def evaluate():
     ckpnt_dir = args.checkpoint_dir
     cur_dir = os.path.dirname(os.path.realpath(__file__))
-    epoches = [90]
+    epoches = [89]
     for epoch in epoches:
         # Make model files ready
         prefix = "%s-%d" % (args.model, hvd.rank())
