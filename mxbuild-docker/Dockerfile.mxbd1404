@@ -7,4 +7,3 @@ COPY mxnet_build1404.sh /tmp
 RUN chmod +x /tmp/mxnet_build1404.sh
 RUN /tmp/mxnet_build1404.sh
 RUN rm -f /tmp/mxnet_build1404.sh
-

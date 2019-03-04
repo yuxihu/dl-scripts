@@ -10,6 +10,8 @@ apt-get install -y --no-install-recommends \
 	vim \
 	wget \
 	cmake \
+	automake \
+	libtool \
 	python \
 	python3 \
 	build-essential \
@@ -41,7 +43,7 @@ git commit -m "initial commit"
 
 # Downloand dependency library
 mkdir -p deps && cd deps
-S3_PREFIX="https://s3.amazonaws.com/hyuxi-mxnet/mxnet-deps-lib/1604"
+S3_PREFIX="https://s3-us-west-2.amazonaws.com/mxnet-python-packages-gcc5/mxnet-deps-lib/1604"
 OPENBLAS_VERSION="0.3.2"
 ZLIB_VERSION="1.2.6"
 TURBO_JPEG_VERSION="1.5.90"
@@ -71,4 +73,3 @@ curl ${S3_PREFIX}/OpenBLAS-${OPENBLAS_VERSION}.tar.gz | tar xvz
 
 # Update gcc version
 sed -i 's/4.8/5.4.0/' /mxbuild/mxnet-ci/scripts/build_lib.sh
-
