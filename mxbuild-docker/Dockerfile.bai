@@ -1,0 +1,74 @@
+FROM nvidia/cuda:9.0-cudnn7-devel-centos7
+
+WORKDIR /bai
+
+COPY nvidia-machine-learning-repo-rhel7-1.0.0-1.x86_64.rpm /bai
+
+RUN rpm -i nvidia-machine-learning-repo-rhel7-1.0.0-1.x86_64.rpm && \
+    rm nvidia-machine-learning-repo-rhel7-1.0.0-1.x86_64.rpm
+
+# Install required libraries
+RUN yum update -y && yum install -y \
+    git \
+    wget \
+    make \
+    python-devel \
+    openssh-client \
+    openssh-server \
+    libnccl-2.4.2-1+cuda9.0 \
+    libnccl-devel-2.4.2-1+cuda9.0 \
+    libnccl-static-2.4.2-1+cuda9.0
+
+# Install pip
+RUN wget -q https://bootstrap.pypa.io/get-pip.py && \
+    python get-pip.py && \
+    rm get-pip.py && \
+    pip install pytest gluoncv
+
+# Install Open MPI
+RUN wget -q https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.0.tar.gz && \
+    tar -zxvf openmpi-4.0.0.tar.gz && \
+    cd openmpi-4.0.0 && \
+    ./configure --enable-orterun-prefix-by-default && \
+    make -j $(nproc) all && \
+    make install && \
+    ldconfig && \
+    cd - && \
+    rm -rf openmpi-4.0.0*
+
+RUN wget -q https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.0.tar.gz && \
+    tar -zxvf openmpi-3.1.0.tar.gz && \
+    cd openmpi-3.1.0 && \
+    ./configure --enable-orterun-prefix-by-default && \
+    make -j $(nproc) all && \
+    make install && \
+    ldconfig && \
+    cd - && \
+    rm -rf openmpi-3.1.0*
+
+# Create a wrapper for OpenMPI to allow running as root by default
+RUN mv /usr/local/bin/mpirun /usr/local/bin/mpirun.real && \
+    echo '#!/bin/bash' > /usr/local/bin/mpirun && \
+    echo 'mpirun.real --allow-run-as-root "$@"' >> /usr/local/bin/mpirun && \
+    chmod a+x /usr/local/bin/mpirun
+
+# Configure OpenMPI to run good defaults:
+# --bind-to none --map-by slot --mca btl_tcp_if_exclude lo,docker0
+RUN echo "hwloc_base_binding_policy = none" >> /usr/local/etc/openmpi-mca-params.conf && \
+    echo "rmaps_base_mapping_policy = slot" >> /usr/local/etc/openmpi-mca-params.conf && \
+echo "btl_tcp_if_exclude = lo,docker0" >> /usr/local/etc/openmpi-mca-params.conf
+
+# Allow OpenSSH to talk to containers without asking for confirmation
+RUN mkdir -p /var/run/sshd && \
+    cat /etc/ssh/ssh_config | grep -v StrictHostKeyChecking > /etc/ssh/ssh_config.new && \
+    echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config.new && \
+    mv /etc/ssh/ssh_config.new /etc/ssh/ssh_config
+
+# Install MXNet
+RUN pip install mxnet_cu90 --pre
+
+# Install Horovod, temporarily using CUDA stubs
+RUN git clone --recursive https://github.com/horovod/horovod.git && \
+    ldconfig /usr/local/cuda-9.0/targets/x86_64-linux/lib/stubs && \
+    HOROVOD_GPU_ALLREDUCE=NCCL pip install --no-cache-dir /bai/horovod && \
+    ldconfig
