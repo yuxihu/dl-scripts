@@ -1,0 +1,78 @@
+FROM nvidia/cuda:9.0-cudnn7-devel-centos7
+
+ARG PYTHON
+
+WORKDIR /build
+
+COPY nvidia-machine-learning-repo-rhel7-1.0.0-1.x86_64.rpm /build
+
+RUN rpm -i nvidia-machine-learning-repo-rhel7-1.0.0-1.x86_64.rpm && \
+    rm nvidia-machine-learning-repo-rhel7-1.0.0-1.x86_64.rpm
+
+# Install required libraries
+RUN yum update -y && yum install -y \
+    git \
+    wget \
+    make \
+    vim \
+    which \
+    python-devel \
+    openssh-client \
+    openssh-server \
+    libnccl-2.4.2-1+cuda9.0 \
+    libnccl-devel-2.4.2-1+cuda9.0 \
+    libnccl-static-2.4.2-1+cuda9.0 \
+    https://centos7.iuscommunity.org/ius-release.rpm
+
+# Install python3
+RUN yum install -y \
+    python36u \
+    python36u-devel
+
+# Install Open MPI
+RUN wget -q https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.0.tar.gz && \
+    tar -zxvf openmpi-3.1.0.tar.gz && \
+    cd openmpi-3.1.0 && \
+    ./configure --enable-orterun-prefix-by-default && \
+    make -j $(nproc) all && \
+    make install && \
+    ldconfig && \
+    cd - && \
+    rm -rf openmpi-3.1.0*
+
+# Create a wrapper for OpenMPI to allow running as root by default
+RUN mv /usr/local/bin/mpirun /usr/local/bin/mpirun.real && \
+    echo '#!/bin/bash' > /usr/local/bin/mpirun && \
+    echo 'mpirun.real --allow-run-as-root "$@"' >> /usr/local/bin/mpirun && \
+    chmod a+x /usr/local/bin/mpirun
+
+# Configure OpenMPI to run good defaults:
+# --bind-to none --map-by slot --mca btl_tcp_if_exclude lo,docker0
+RUN echo "hwloc_base_binding_policy = none" >> /usr/local/etc/openmpi-mca-params.conf && \
+    echo "rmaps_base_mapping_policy = slot" >> /usr/local/etc/openmpi-mca-params.conf && \
+echo "btl_tcp_if_exclude = lo,docker0" >> /usr/local/etc/openmpi-mca-params.conf
+
+# Allow OpenSSH to talk to containers without asking for confirmation
+RUN mkdir -p /var/run/sshd && \
+    cat /etc/ssh/ssh_config | grep -v StrictHostKeyChecking > /etc/ssh/ssh_config.new && \
+    echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config.new && \
+    mv /etc/ssh/ssh_config.new /etc/ssh/ssh_config
+
+# Set python version
+RUN rm /usr/bin/python && \
+    ln -s /usr/bin/python${PYTHON} /usr/bin/python
+
+# Install pip
+RUN wget -q https://bootstrap.pypa.io/get-pip.py && \
+    python get-pip.py && \
+    rm get-pip.py && \
+    pip install pytest gluoncv
+
+# Install MXNet
+RUN pip install mxnet_cu90mkl && \
+    git clone --recursive https://github.com/apache/incubator-mxnet.git mxnet -b v1.4.x && \
+    ln -s /build/mxnet/3rdparty/mkldnn/include /usr/lib/python${PYTHON}/site-packages/mxnet/include/mkldnn
+
+# Download Horovod and load CUDA stubs
+RUN git clone --recursive https://github.com/yuxihu/horovod.git -b build && \
+    ldconfig /usr/local/cuda-9.0/targets/x86_64-linux/lib/stubs
